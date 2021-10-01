@@ -9,3 +9,5 @@ services:
     image: redis:alpine
     environment:
       - TZ=Asia/Tokyo
+    ports:
+      - 6379:6379
