@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"gorm.io/driver/mysql"
@@ -66,6 +68,9 @@ func main() {
 	e.POST("/products/register", registerProduct)
 	e.POST("/products/update", updateProduct)
 	e.POST("/products/delete", deleteProduct)
+
+	e.GET("/redis/get/:key", redisGet)
+	e.POST("/redis/set", redisSet)
 
 	e.Static("/static", "static")
 	e.Logger.Fatal(e.Start(":1323"))
@@ -190,4 +195,46 @@ func deleteProduct(c echo.Context) error {
 	db.Delete(&product, c.FormValue("id"))
 
 	return c.String(http.StatusOK, "deleted.")
+}
+
+func getRedisClient() *redis.Client {
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "127.0.0.1:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	return rdb
+}
+
+func redisGet(c echo.Context) error {
+	ctx := context.Background()
+	key := c.Param("key")
+
+	rdb := getRedisClient()
+
+	val, err := rdb.Get(ctx, key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return c.String(http.StatusOK, "key not found.")
+		}
+		panic(err)
+	}
+
+	return c.String(http.StatusOK, key+" : "+val)
+}
+
+func redisSet(c echo.Context) error {
+	ctx := context.Background()
+	key := c.FormValue("key")
+	value := c.FormValue("value")
+
+	rdb := getRedisClient()
+
+	err := rdb.Set(ctx, key, value, 0).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	return c.String(http.StatusOK, "set value")
 }
